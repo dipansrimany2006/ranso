@@ -24,12 +24,19 @@ async function uploadFile(
 }
 
 async function mkdirRemote(sftp: any, remotePath: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    sftp.mkdir(remotePath, (err: Error | null) => {
-      if (err && (err as any).code !== 4) reject(err); // code 4 = already exists
-      else resolve();
+  // Create parent directories recursively
+  const parts = remotePath.split("/").filter(Boolean);
+  let currentPath = "";
+
+  for (const part of parts) {
+    currentPath += "/" + part;
+    await new Promise<void>((resolve) => {
+      sftp.mkdir(currentPath, (err: Error | null) => {
+        // Ignore errors (dir may already exist)
+        resolve();
+      });
     });
-  });
+  }
 }
 
 async function uploadDirRecursive(

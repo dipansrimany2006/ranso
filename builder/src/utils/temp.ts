@@ -1,27 +1,32 @@
-import { unlink, rm, mkdir } from "fs/promises";
+import { rm, mkdir } from "fs/promises";
 import { join } from "path";
-import { Glob } from "bun";
 
-const TMP_DIR = join(import.meta.dir, "../../.tmp");
+const TMP_DIR = join(process.cwd(), ".tmp");
 
 export async function extractZip(id: string, zipFile: File): Promise<string> {
   const extractPath = join(TMP_DIR, id);
   await mkdir(extractPath, { recursive: true });
 
-  const zipBuffer = await zipFile.arrayBuffer();
-  const zipBlob = new Blob([zipBuffer]);
+  // Write zip to temp file
+  const zipPath = join(TMP_DIR, `${id}.zip`);
+  await Bun.write(zipPath, zipFile);
 
-  // Use Bun's native unzip
-  const proc = Bun.spawn(["unzip", "-o", "-d", extractPath, "-"], {
-    stdin: new Response(zipBlob).body,
+  // Extract
+  const proc = Bun.spawn(["unzip", "-o", "-d", extractPath, zipPath], {
+    stdout: "pipe",
+    stderr: "pipe",
   });
 
-  await proc.exited;
+  const exitCode = await proc.exited;
+  const stderr = await new Response(proc.stderr).text();
 
-  if (proc.exitCode !== 0) {
-    throw new Error("Failed to extract zip file");
+  // Cleanup zip file after checking exit code
+  if (exitCode !== 0) {
+    await rm(zipPath, { force: true });
+    throw new Error(`Failed to extract zip: ${stderr}`);
   }
 
+  await rm(zipPath, { force: true });
   return extractPath;
 }
 

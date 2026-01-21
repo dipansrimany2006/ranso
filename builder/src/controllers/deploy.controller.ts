@@ -31,8 +31,25 @@ export async function deploy(
     // 2. parse EXPOSE port from Dockerfile
     const exposePort = await parseExposePort(localPath);
 
-    // 3. get instance
-    const instance = await morphClient.instances.get({ instanceId });
+    // 3. get instance and resume if paused
+    let instance = await morphClient.instances.get({ instanceId });
+
+    const status = instance.status?.toLowerCase();
+    if (status === "paused" || status === "pausing" || status === "stopped") {
+      await instance.resume();
+      // wait for instance to be ready
+      for (let i = 0; i < 60; i++) {
+        instance = await morphClient.instances.get({ instanceId });
+        const newStatus = instance.status?.toLowerCase();
+        if (newStatus === "running" || newStatus === "ready") {
+          break;
+        }
+        if (i === 59) {
+          throw new Error(`Instance failed to resume. Status: ${instance.status}`);
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
 
     // 4. transfer files
     const remotePath = `/app/${containerId}`;
