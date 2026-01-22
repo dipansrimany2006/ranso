@@ -6,7 +6,8 @@ import { cronosTestnet } from "viem/chains";
 const PRIVATE_KEY = process.env.PRIVATE_KEY!;
 if (!PRIVATE_KEY) throw new Error("PRIVATE_KEY env required");
 
-const TOOL_URL = "http://localhost:8001/send";
+const TOOL_URL =
+  "https://0x419e5a_190e43a1-morphvm-df0fp5na.http.cloud.morph.so/send";
 const USDC_CONTRACT = "0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0" as const;
 
 // ERC20 balanceOf ABI
@@ -105,7 +106,7 @@ async function main() {
       "Content-Type": "application/json",
       "X-PAYMENT": paymentHeader,
     },
-    body: JSON.stringify({ name: "Alice" }),
+    body: JSON.stringify({ name: "Roy" }),
   });
 
   console.log("\nStatus:", resPaid.status);

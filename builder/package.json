@@ -1,7 +1,9 @@
 {
   "name": "builder",
   "scripts": {
-    "dev": "bun run --hot src/index.ts"
+    "dev": "bun run --hot src/index.ts",
+    "db:generate": "bun drizzle-kit generate",
+    "db:migrate": "bun drizzle-kit migrate"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
@@ -15,3 +17,4 @@
     "drizzle-kit": "^0.31.8"
   }
 }
+

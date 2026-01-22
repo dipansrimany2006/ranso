@@ -4992,6 +4992,12 @@ async function main() {
     initial: ""
   });
   const wallet = walletAddress || "0x0000000000000000000000000000000000000000";
+  const { description } = await import_prompts.default({
+    type: "text",
+    name: "description",
+    message: "Tool description:",
+    initial: ""
+  });
   const targetDir = join(process.cwd(), projectName);
   if (existsSync(targetDir)) {
     console.log(`❌ Directory ${projectName} already exists`);
@@ -5013,17 +5019,21 @@ async function main() {
   const pkg = {
     name: projectName,
     version: "0.0.1",
+    description: description || "",
     type: "module",
     scripts: {
       dev: "bun run --watch src/index.ts",
-      start: "bun run src/index.ts"
+      start: "bun run src/index.ts",
+      deploy: "bun run scripts/deploy.ts"
     },
     dependencies: {
       "@axicov/x402-cronos-sdk": `^${sdkVersion}`
     },
     devDependencies: {
       "@types/node": "^22.0.0",
-      typescript: "^5.0.0"
+      typescript: "^5.0.0",
+      archiver: "^7.0.0",
+      "@types/archiver": "^6.0.0"
     }
   };
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
@@ -5036,7 +5046,8 @@ async function main() {
   if (runtime === "node") {
     pkg.scripts = {
       dev: "npx tsx watch src/index.ts",
-      start: "npx tsx src/index.ts"
+      start: "npx tsx src/index.ts",
+      deploy: "npx tsx scripts/deploy.ts"
     };
     pkg.devDependencies = pkg.devDependencies || {};
     pkg.devDependencies.tsx = "^4.0.0";

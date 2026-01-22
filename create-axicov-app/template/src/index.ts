@@ -15,7 +15,6 @@ createx402Tool(
     price: PRICE,
     devWallet: DEV_WALLET,
     port: PORT,
-    description: "My x402 API",
   }
 );
 

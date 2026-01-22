@@ -63,6 +63,13 @@ async function main() {
 
   const wallet = walletAddress || "0x0000000000000000000000000000000000000000";
 
+  const { description } = await prompts({
+    type: "text",
+    name: "description",
+    message: "Tool description:",
+    initial: "",
+  });
+
   const targetDir = join(process.cwd(), projectName);
 
   if (existsSync(targetDir)) {
@@ -95,10 +102,12 @@ async function main() {
   const pkg: Record<string, any> = {
     name: projectName,
     version: "0.0.1",
+    description: description || "",
     type: "module",
     scripts: {
       dev: "bun run --watch src/index.ts",
       start: "bun run src/index.ts",
+      deploy: "bun run scripts/deploy.ts",
     },
     dependencies: {
       "@axicov/x402-cronos-sdk": `^${sdkVersion}`,
@@ -106,6 +115,8 @@ async function main() {
     devDependencies: {
       "@types/node": "^22.0.0",
       typescript: "^5.0.0",
+      archiver: "^7.0.0",
+      "@types/archiver": "^6.0.0",
     },
   };
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
@@ -126,6 +137,7 @@ async function main() {
     pkg.scripts = {
       dev: "npx tsx watch src/index.ts",
       start: "npx tsx src/index.ts",
+      deploy: "npx tsx scripts/deploy.ts",
     };
     pkg.devDependencies = pkg.devDependencies || {};
     pkg.devDependencies.tsx = "^4.0.0";

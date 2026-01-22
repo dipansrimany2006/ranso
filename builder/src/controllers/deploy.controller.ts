@@ -3,8 +3,11 @@ import { touchTTL } from "../utils/morph/ttl";
 import { transferDir } from "../utils/morph/fileTransfer";
 import { getNextPort } from "../utils/morph/port";
 import { extractZip, cleanup } from "../utils/temp";
-import { getUserId } from "../utils/user";
 import { parseExposePort } from "../utils/dockerfile";
+import { parseToolMeta } from "../utils/parseToolMeta";
+import { parsePrice } from "../utils/parsePrice";
+import { db } from "../db";
+import { tools } from "../db/schema";
 
 interface DeployResult {
   containerId: string;
@@ -12,26 +15,31 @@ interface DeployResult {
   port: number;
   buildOutput: string;
   status: "deployed" | "failed";
+  toolId?: string;
 }
 
 export async function deploy(
   instanceId: string,
   zipFile: File,
-  apiKey?: string
+  ownerWallet: string,
+  envVars: Record<string, string> = {},
 ): Promise<DeployResult> {
-  const userId = getUserId(apiKey);
   const id = crypto.randomUUID().slice(0, 8);
-  const containerId = `${userId}_${id}`;
+  const containerId = `${ownerWallet.slice(0, 8)}_${id}`.toLocaleLowerCase();
   let localPath = "";
 
   try {
     // 1. extract zip
     localPath = await extractZip(id, zipFile);
 
-    // 2. parse EXPOSE port from Dockerfile
+    // 2. parse tool metadata from package.json
+    const toolMeta = parseToolMeta(localPath);
+    const price = parsePrice(localPath);
+
+    // 3. parse EXPOSE port from Dockerfile
     const exposePort = await parseExposePort(localPath);
 
-    // 3. get instance and resume if paused
+    // 4. get instance and resume if paused
     let instance = await morphClient.instances.get({ instanceId });
 
     const status = instance.status?.toLowerCase();
@@ -45,7 +53,9 @@ export async function deploy(
           break;
         }
         if (i === 59) {
-          throw new Error(`Instance failed to resume. Status: ${instance.status}`);
+          throw new Error(
+            `Instance failed to resume. Status: ${instance.status}`,
+          );
         }
         await new Promise((r) => setTimeout(r, 1000));
       }
@@ -60,7 +70,7 @@ export async function deploy(
 
     // 6. docker build
     const buildResult = await instance.exec(
-      `cd ${remotePath} && docker build -t ${containerId} .`
+      `cd ${remotePath} && docker build -t ${containerId} .`,
     );
 
     if (buildResult.exit_code !== 0) {
@@ -74,8 +84,11 @@ export async function deploy(
     }
 
     // 7. docker run
+    const envFlags = Object.entries(envVars)
+      .map(([k, v]) => `-e ${k}="${v.replace(/"/g, '\\"')}"`)
+      .join(" ");
     const runResult = await instance.exec(
-      `docker run -d -p ${hostPort}:${exposePort} --name ${containerId} ${containerId}`
+      `docker run -d -p ${hostPort}:${exposePort} ${envFlags} --name ${containerId} ${containerId}`,
     );
 
     if (runResult.exit_code !== 0) {
@@ -97,12 +110,25 @@ export async function deploy(
     // 10. cleanup temp
     await cleanup(id);
 
+    // 11. save tool to DB
+    const toolId = crypto.randomUUID();
+    await db.insert(tools).values({
+      id: toolId,
+      owner: ownerWallet,
+      name: toolMeta.name,
+      description: toolMeta.description,
+      apiURL: url,
+      images: [],
+      price: price,
+    });
+
     return {
       containerId,
       url,
       port: hostPort,
       buildOutput: buildResult.stdout || "Build successful",
       status: "deployed",
+      toolId,
     };
   } catch (err) {
     // cleanup on error
