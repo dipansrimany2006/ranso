@@ -34,7 +34,10 @@ const DashboardPage = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [generatedKey, setGeneratedKey] = useState<{ key: string; name: string } | null>(null);
+  const [generatedKey, setGeneratedKey] = useState<{
+    key: string;
+    name: string;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const [localKeys, setLocalKeys] = useState<Record<string, string>>({});
@@ -156,7 +159,9 @@ const DashboardPage = () => {
 
       closeModal();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate API key");
+      setError(
+        err instanceof Error ? err.message : "Failed to generate API key",
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -194,7 +199,7 @@ const DashboardPage = () => {
             </div>
             <div>
               <p className="text-sm text-neutral-400">Total Earned</p>
-              <p className="text-base font-medium text-neutral-900">${totalEarned}</p>
+              <p className="text-base font-medium text-neutral-900">$0</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -203,7 +208,9 @@ const DashboardPage = () => {
             </div>
             <div>
               <p className="text-sm text-neutral-400">API Keys</p>
-              <p className="text-base font-medium text-neutral-900">{apiKeys.length}</p>
+              <p className="text-base font-medium text-neutral-900">
+                {apiKeys.length}
+              </p>
             </div>
           </div>
         </div>
@@ -217,16 +224,14 @@ const DashboardPage = () => {
             <button
               onClick={openModal}
               disabled={!isConnected}
-              className="flex items-center gap-2 text-sm text-neutral-500 hover:text-neutral-900 disabled:text-neutral-300 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 text-sm  disabled:text-neutral-300 disabled:cursor-not-allowed transition-colors"
             >
               <IconPlus className="w-4 h-4" />
               New key
             </button>
           </div>
 
-          {error && (
-            <p className="text-sm text-red-500 mb-4">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
           {!isConnected ? (
             <p className="text-neutral-400 py-8">
@@ -250,7 +255,7 @@ const DashboardPage = () => {
                     className="group flex items-center gap-6 py-4 border-b border-neutral-100 -mx-4 px-4 hover:bg-neutral-50 transition-colors"
                   >
                     {/* Number */}
-                    <span className="w-8 text-sm text-neutral-300 tabular-nums">
+                    <span className="w-8 text-sm text-neutral-700 tabular-nums">
                       {String(index + 1).padStart(2, "0")}
                     </span>
 
@@ -264,9 +269,6 @@ const DashboardPage = () => {
                       <h3 className="text-base font-medium text-neutral-900">
                         {apiKey.name}
                       </h3>
-                      <div className="flex-shrink-0 w-8 h-8 rounded-lg border border-neutral-200 flex items-center justify-center bg-rose-600">
-                        <Image src="/terminal.svg" alt="Terminal" width={16} height={16} />
-                      </div>
                     </div>
 
                     {/* Meta */}
@@ -276,17 +278,6 @@ const DashboardPage = () => {
 
                     {/* Actions */}
                     <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => toggleKeyVisibility(apiKey.name)}
-                        disabled={!rawKey}
-                        className="p-2 text-neutral-400 hover:text-neutral-600 disabled:text-neutral-200 transition-colors"
-                      >
-                        {isVisible ? (
-                          <IconEyeOff className="w-4 h-4" />
-                        ) : (
-                          <IconEye className="w-4 h-4" />
-                        )}
-                      </button>
                       <button
                         onClick={() => rawKey && copyToClipboard(rawKey)}
                         disabled={!rawKey}
@@ -380,7 +371,9 @@ const DashboardPage = () => {
             </p>
 
             <div className="mb-8">
-              <p className="text-sm text-neutral-400 mb-2">{generatedKey.name}</p>
+              <p className="text-sm text-neutral-400 mb-2">
+                {generatedKey.name}
+              </p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 px-4 py-3 bg-neutral-900 text-green-400 rounded-lg text-sm font-mono break-all">
                   {generatedKey.key}

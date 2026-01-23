@@ -1,0 +1,5 @@
+# Overview
+
+Axicov is the infrastructure layer for x402-enabled agentic systems on the Cronos blockchain. It provides a complete marketplace where developers can build, deploy, and monetize AI-powered tools with automatic USDC micropayments handled at the protocol level. By leveraging the x402 payment standard, Axicov enables autonomous AI agents to seamlessly pay for and consume APIs without human intervention, creating a foundation for machine-to-machine economic interactions on Cronos.
+
+The platform consists of four components: a Next.js frontend with Cronos wallet integration for users to discover and interact with tools, a Hono backend that manages deployments and orchestrates containerized services on MorphCloud, an SDK that wraps the x402 payment protocol for easy integration, and a CLI scaffolder that bootstraps new tools with everything needed to start earning. Developers define their tool logic and pricing, deploy with a single command, and immediately start receiving USDC payments from users and AI agents on every API call.
