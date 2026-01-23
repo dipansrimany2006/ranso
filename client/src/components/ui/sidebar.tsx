@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { IconMenu2, IconX, IconPlus, IconWallet } from "@tabler/icons-react";
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import Image from "next/image";
+import Link from "next/link";
 
 interface Links {
   label: string;
@@ -166,7 +167,7 @@ export const SidebarLink = ({
 }) => {
   const { open } = useSidebar();
   return (
-    <a
+    <Link
       href={link.href}
       className={cn(
         "flex items-center gap-3 w-full p-1 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors",
@@ -185,14 +186,14 @@ export const SidebarLink = ({
       >
         {link.label}
       </span>
-    </a>
+    </Link>
   );
 };
 
 export const SidebarLogo = ({ className }: { className?: string }) => {
   const { open } = useSidebar();
   return (
-    <a
+    <Link
       href="/"
       className={cn("flex items-center gap-3 w-full mb-6 p-1 pb-3", className)}
     >
@@ -213,7 +214,7 @@ export const SidebarLogo = ({ className }: { className?: string }) => {
       >
         Axicov
       </span>
-    </a>
+    </Link>
   );
 };
 

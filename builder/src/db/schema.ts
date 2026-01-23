@@ -15,6 +15,8 @@ export const tools = pgTable("tools", {
   apiURL: text("api_url").notNull(),
   images: jsonb("images").$type<string[]>().default([]),
   price: real("price").notNull(),
+  inputSchema: jsonb("input_schema").$type<object>(),
+  outputSchema: jsonb("output_schema").$type<object>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

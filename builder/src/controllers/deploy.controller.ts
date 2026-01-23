@@ -104,13 +104,39 @@ export async function deploy(
     // 8. expose HTTP service
     const { url } = await instance.exposeHttpService(containerId, hostPort);
 
+    // 8.5 fetch schema from running tool
+    let inputSchema = null;
+    let outputSchema = null;
+    let schemaPrice = null;
+
+    // Wait for container startup
+    await new Promise((r) => setTimeout(r, 2000));
+
+    try {
+      const schemaRes = await fetch(`${url}/schema`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (schemaRes.ok) {
+        const data = await schemaRes.json() as {
+          inputSchema?: object;
+          outputSchema?: object;
+          price?: number;
+        };
+        inputSchema = data.inputSchema ?? null;
+        outputSchema = data.outputSchema ?? null;
+        schemaPrice = data.price ?? null;
+      }
+    } catch {
+      // Old SDK or no schema - continue with parsed price
+    }
+
     // 9. reset TTL
     await touchTTL(instance, 300);
 
     // 10. cleanup temp
     await cleanup(id);
 
-    // 11. save tool to DB
+    // 11. save tool to DB (use schemaPrice if available, else parsed price)
     const toolId = crypto.randomUUID();
     await db.insert(tools).values({
       id: toolId,
@@ -119,7 +145,9 @@ export async function deploy(
       description: toolMeta.description,
       apiURL: url,
       images: [],
-      price: price,
+      price: schemaPrice ?? price,
+      inputSchema,
+      outputSchema,
     });
 
     return {

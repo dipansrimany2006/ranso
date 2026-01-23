@@ -1,159 +1,230 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { IconPlus, IconX, IconMicrophone, IconWaveSine } from "@tabler/icons-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "motion/react";
+import { useAppKitAccount } from "@reown/appkit/react";
+
 import ChatLayout from "@/components/layout/ChatLayout";
+import {
+  useAIChat,
+  useToolApproval,
+  useX402Payment,
+  ChatMessages,
+  ChatInput,
+  ToolApprovalModal,
+  PaymentModal,
+  type Tool,
+  type ToolExecutionResult,
+} from "@/features/chat";
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-interface Tool {
-  id: string;
-  owner: string;
-  name: string;
-  description: string;
-  apiURL: string;
-  images: string[];
-  price: number;
-}
+export default function ChatPage() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { address, isConnected } = useAppKitAccount();
+  const threadId = params.id as string;
 
-const ChatPage = () => {
-  const [showTools, setShowTools] = useState(false);
   const [selectedTools, setSelectedTools] = useState<Tool[]>([]);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "user",
-      content: "I am making a permissionless prediction market place for mantle hackathon. I already made the basic MVP of the prediction market place, Now to win the hackathon what things need to be add in the platform.",
+  const [showTools, setShowTools] = useState(false);
+  const [chatLoaded, setChatLoaded] = useState(false);
+  const initialProcessed = useRef(false);
+
+  // Tool approval flow
+  const {
+    pendingTool,
+    isProcessing: isToolProcessing,
+    requestApproval,
+    approve,
+    reject,
+    finishProcessing,
+  } = useToolApproval();
+
+  // Payment flow
+  const {
+    pendingPayment,
+    isProcessing: isPaymentProcessing,
+    requestPayment,
+    confirmPayment,
+    cancelPayment,
+  } = useX402Payment();
+
+  // AI Chat
+  const {
+    messages,
+    input,
+    setInput,
+    handleSubmit,
+    isLoading,
+    error,
+    addToolResult,
+    append,
+  } = useAIChat({
+    threadId,
+    selectedTools,
+    walletAddress: address,
+    onToolCall: requestApproval,
+    onSave: async (msgs) => {
+      // Messages are persisted server-side via onFinish in the stream
+      window.dispatchEvent(new CustomEvent("chat-updated"));
     },
-    {
-      id: "2",
-      role: "assistant",
-      content: `Here's a **tailored plan** to help your permissionless prediction marketplace stand out and **win a prize at the Mantle Global Hackathon 2025** — based on the official hackathon details, tracks, judges, and judging criteria.
+  });
 
----
+  // Handle tool approval and execution
+  const handleApprove = useCallback(async () => {
+    const tool = await approve();
+    if (!tool) return;
 
-## What the Mantle Hackathon Is Looking For
+    try {
+      // Execute the tool
+      const res = await fetch(`${API_URL}/ai/execute-tool`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          toolId: tool.toolId,
+          input: tool.args,
+          selectedTools,
+        }),
+      });
 
-According to the hackathon rules, prizes, and judging criteria:
+      const result: ToolExecutionResult = await res.json();
 
-**Key evaluation pillars include:**
-- Technical excellence (working & scalable code)
-- User experience (UX) & smooth demos
-- Real-world applicability and utility
-- Integration with Mantle's stack & ecosystem
-- Long-term potential & ecosystem fit
-- Community support (community vote prizes)
-- Optional incubation potential post-hackathon
+      if (result.status === "payment_required") {
+        // Request payment
+        const toolDef = selectedTools.find((t) => t.id === tool.toolId);
+        const paymentHeader = await requestPayment({
+          toolId: tool.toolId,
+          toolName: toolDef?.name || tool.toolName,
+          requirements: result.requirements as {
+            payTo: string;
+            maxAmountRequired: string;
+          },
+        });
 
-**Prize breakdown** highlights that *Best UX/Demo*, *Best Mantle Integration*, and *Community Choice* awards are separate from track prizes — meaning **demonstration, polish, and visibility matter almost as much as the product itself**.`,
-    },
+        if (paymentHeader) {
+          // Retry with payment
+          try {
+            const paidRes = await fetch(`${API_URL}/ai/execute-tool`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                toolId: tool.toolId,
+                input: tool.args,
+                paymentHeader,
+                selectedTools,
+              }),
+            });
+            const paidResult: ToolExecutionResult = await paidRes.json();
+
+            if (paidResult.status === "success") {
+              addToolResult({ toolCallId: tool.id, toolName: tool.toolName, result: paidResult.data });
+            } else {
+              addToolResult({
+                toolCallId: tool.id,
+                toolName: tool.toolName,
+                result: { error: "Payment failed" },
+              });
+            }
+          } catch (paidErr) {
+            console.error("Paid request error:", paidErr);
+            addToolResult({
+              toolCallId: tool.id,
+              toolName: tool.toolName,
+              result: { error: "Payment execution failed" },
+            });
+          }
+        } else {
+          addToolResult({
+            toolCallId: tool.id,
+            toolName: tool.toolName,
+            result: { error: "Payment cancelled" },
+          });
+        }
+      } else if (result.status === "success") {
+        addToolResult({ toolCallId: tool.id, toolName: tool.toolName, result: result.data });
+      } else {
+        // Unknown status or error
+        addToolResult({
+          toolCallId: tool.id,
+          toolName: tool.toolName,
+          result: { error: "Tool execution returned unexpected status" },
+        });
+      }
+    } catch (err) {
+      console.error("Tool execution error:", err);
+      addToolResult({
+        toolCallId: tool.id,
+        toolName: tool.toolName,
+        result: { error: "Tool execution failed" },
+      });
+    } finally {
+      finishProcessing();
+    }
+  }, [
+    approve,
+    selectedTools,
+    requestPayment,
+    addToolResult,
+    finishProcessing,
   ]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  // Handle tool rejection
+  const handleReject = useCallback(() => {
+    if (pendingTool) {
+      addToolResult({
+        toolCallId: pendingTool.id,
+        toolName: pendingTool.toolName,
+        result: { error: "Tool execution denied by user" },
+      });
+    }
+    reject();
+  }, [pendingTool, addToolResult, reject]);
 
-  const handleSelectTool = (tool: Tool) => {
+  // Load pending tools from localStorage (from home page)
+  useEffect(() => {
+    if (initialProcessed.current) return;
+
+    const pending = localStorage.getItem("pendingTools");
+    if (pending) {
+      try {
+        setSelectedTools(JSON.parse(pending));
+      } catch (e) {
+        console.error("Failed to parse pending tools:", e);
+      }
+      localStorage.removeItem("pendingTools");
+    }
+    initialProcessed.current = true;
+  }, []);
+
+  // Handle initial message from home page
+  useEffect(() => {
+    if (!chatLoaded) {
+      setChatLoaded(true);
+      return;
+    }
+
+    const initialMessage = searchParams.get("initial");
+    if (initialMessage && messages.length === 0) {
+      // Send the initial message
+      append({
+        role: "user",
+        content: initialMessage,
+      });
+      // Clean URL
+      router.replace(`/chat/${threadId}`, { scroll: false });
+    }
+  }, [searchParams, chatLoaded, messages.length, append, router, threadId]);
+
+  // Tool selection handler
+  const handleSelectTool = useCallback((tool: Tool) => {
     setSelectedTools((prev) =>
       prev.some((t) => t.id === tool.id)
         ? prev.filter((t) => t.id !== tool.id)
         : [...prev, tool]
     );
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: input.trim(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsLoading(true);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: "This is a simulated response. The actual AI integration will be implemented later.",
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-      setIsLoading(false);
-    }, 1000);
-  };
-
-  const renderMessageContent = (content: string) => {
-    // Simple markdown-like rendering
-    const lines = content.split("\n");
-    return lines.map((line, index) => {
-      // Headers
-      if (line.startsWith("## ")) {
-        return (
-          <h2 key={index} className="text-lg font-semibold text-neutral-800 mt-6 mb-2 flex items-center gap-2">
-            {line.replace("## ", "")}
-          </h2>
-        );
-      }
-      // Horizontal rule
-      if (line === "---") {
-        return <hr key={index} className="border-neutral-200 my-4" />;
-      }
-      // Bullet points
-      if (line.startsWith("- ")) {
-        const text = line.replace("- ", "");
-        return (
-          <div key={index} className="flex items-start gap-2 my-1">
-            <span className="text-green-500 mt-0.5">✓</span>
-            <span>{renderInlineFormatting(text)}</span>
-          </div>
-        );
-      }
-      // Empty lines
-      if (line.trim() === "") {
-        return <div key={index} className="h-2" />;
-      }
-      // Regular paragraph
-      return (
-        <p key={index} className="my-1">
-          {renderInlineFormatting(line)}
-        </p>
-      );
-    });
-  };
-
-  const renderInlineFormatting = (text: string) => {
-    // Handle bold (**text**) and italic (*text*)
-    const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return (
-          <strong key={index} className="font-semibold">
-            {part.slice(2, -2)}
-          </strong>
-        );
-      }
-      if (part.startsWith("*") && part.endsWith("*")) {
-        return <em key={index}>{part.slice(1, -1)}</em>;
-      }
-      return part;
-    });
-  };
+  }, []);
 
   return (
     <ChatLayout
@@ -161,90 +232,58 @@ According to the hackathon rules, prizes, and judging criteria:
       selectedTools={selectedTools}
       onSelectTool={handleSelectTool}
     >
-      <div className="flex flex-col h-full bg-white">
-        {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-4 py-8">
-          {messages.map((message) => (
-            <div key={message.id} className="mb-6">
-              {message.role === "user" ? (
-                // User message - right aligned with dark bubble
-                <div className="flex justify-end">
-                  <div className="max-w-[80%] px-4 py-3 bg-neutral-800 text-white rounded-2xl rounded-tr-sm">
-                    <p className="whitespace-pre-wrap">{message.content}</p>
-                  </div>
-                </div>
-              ) : (
-                // Assistant message - left aligned, plain text
-                <div className="text-neutral-700 leading-relaxed">
-                  {renderMessageContent(message.content)}
-                </div>
-              )}
+      <motion.div
+        className="flex flex-col h-full bg-white"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        {/* Error display */}
+        {error && (
+          <div className="mx-auto max-w-3xl px-4 py-2">
+            <div className="bg-red-50 text-red-700 px-4 py-2 rounded-lg text-sm">
+              Something went wrong. Please try again.
             </div>
-          ))}
+          </div>
+        )}
 
-          {/* Loading indicator */}
-          {isLoading && (
-            <div className="mb-6">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-              </div>
-            </div>
-          )}
+        {/* Messages */}
+        <ChatMessages messages={messages} isLoading={isLoading} />
 
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
+        {/* Input */}
+        <ChatInput
+          input={input}
+          setInput={setInput}
+          onSubmit={handleSubmit}
+          onToggleTools={() => setShowTools(!showTools)}
+          showTools={showTools}
+          disabled={isLoading}
+        />
+      </motion.div>
 
-      {/* Input Area */}
-      <div className="bg-white pb-4">
-        <div className="max-w-3xl mx-auto px-4">
-          <form onSubmit={handleSubmit}>
-            <div className="flex items-center gap-2 w-full px-4 py-3 bg-neutral-100 rounded-full border border-neutral-200">
-              <button
-                type="button"
-                onClick={() => setShowTools(!showTools)}
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-200 transition-colors text-neutral-500"
-              >
-                {showTools ? (
-                  <IconX className="h-5 w-5" />
-                ) : (
-                  <IconPlus className="h-5 w-5" />
-                )}
-              </button>
+      {/* Tool Approval Modal */}
+      <AnimatePresence>
+        {pendingTool && (
+          <ToolApprovalModal
+            toolCall={pendingTool}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            isProcessing={isToolProcessing}
+          />
+        )}
+      </AnimatePresence>
 
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask anything"
-                className="flex-1 bg-transparent outline-none text-neutral-800 placeholder:text-neutral-400"
-                disabled={isLoading}
-              />
-
-              <button
-                type="button"
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-200 transition-colors text-neutral-500"
-              >
-                <IconMicrophone className="h-5 w-5" />
-              </button>
-
-              <button
-                type="submit"
-                disabled={!input.trim() || isLoading}
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-neutral-800 hover:bg-neutral-700 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-colors text-white"
-              >
-                <IconWaveSine className="h-4 w-4" />
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-      </div>
+      {/* Payment Modal */}
+      <AnimatePresence>
+        {pendingPayment && (
+          <PaymentModal
+            payment={pendingPayment}
+            onConfirm={confirmPayment}
+            onCancel={cancelPayment}
+            isProcessing={isPaymentProcessing}
+          />
+        )}
+      </AnimatePresence>
     </ChatLayout>
   );
-};
-
-export default ChatPage;
+}

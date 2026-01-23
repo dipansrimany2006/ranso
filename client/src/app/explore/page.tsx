@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { IconSearch, IconTerminal2 } from "@tabler/icons-react";
 
 interface Tool {
   id: string;
@@ -70,16 +69,10 @@ const ExplorePage = () => {
 
   return (
     <div className="h-full bg-white overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-8 py-16">
-        {/* Header */}
-        <div className="mb-12">
-          <h1 className="text-4xl font-normal text-neutral-900 mb-2">
-            Power-ups
-          </h1>
-          <p className="text-neutral-500">
-            Plug in. Pay per use. Build more.
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <h1 className="text-2xl font-bold text-neutral-800 mb-8">
+          Explore Tools
+        </h1>
 
         {/* Search */}
         <div className="relative mb-10">
@@ -121,15 +114,18 @@ const ExplorePage = () => {
                   <h3 className="text-base font-medium text-neutral-900 group-hover:text-neutral-600 transition-colors">
                     {tool.name}
                   </h3>
-                  <p className="text-sm text-neutral-400 truncate">
-                    {tool.description || "No description"}
-                  </p>
                 </div>
 
-                {/* Meta */}
-                <div className="hidden sm:flex items-center gap-8 text-sm">
-                  <span className="text-neutral-400 w-28 truncate">
-                    {truncateAddress(tool.owner)}
+                <p className="text-sm text-neutral-500 mb-4 line-clamp-3 leading-relaxed">
+                  {tool.description || "No description available"}
+                </p>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-neutral-600">
+                    by{" "}
+                    <span className="font-medium">
+                      {truncateAddress(tool.owner)}
+                    </span>
                   </span>
                   <span className="text-neutral-900 font-medium w-16 text-right">
                     ${tool.price.toFixed(2)}

@@ -111,6 +111,7 @@ async function main() {
     },
     dependencies: {
       "@axicov/x402-cronos-sdk": `^${sdkVersion}`,
+      zod: "^3.24.0",
     },
     devDependencies: {
       "@types/node": "^22.0.0",

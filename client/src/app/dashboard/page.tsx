@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import {
   IconCopy,
   IconPlus,
-  IconKey,
   IconX,
   IconCheck,
   IconEye,
@@ -12,6 +11,7 @@ import {
   IconWallet,
   IconReceipt,
 } from "@tabler/icons-react";
+import Image from "next/image";
 import { useAppKitAccount } from "@reown/appkit/react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -263,13 +263,9 @@ const DashboardPage = () => {
                       <h3 className="text-base font-medium text-neutral-900">
                         {apiKey.name}
                       </h3>
-                      <p className="text-sm text-neutral-400 font-mono truncate">
-                        {rawKey
-                          ? isVisible
-                            ? rawKey
-                            : maskKey(rawKey)
-                          : "••••••••••••••••••••••••"}
-                      </p>
+                      <div className="flex-shrink-0 w-8 h-8 rounded-lg border border-neutral-200 flex items-center justify-center bg-rose-600">
+                        <Image src="/terminal.svg" alt="Terminal" width={16} height={16} />
+                      </div>
                     </div>
 
                     {/* Meta */}

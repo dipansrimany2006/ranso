@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import { x402Middleware } from "./middleware";
 import type { X402Config } from "./types";
 
@@ -8,6 +9,19 @@ export function createx402Tool<TInput, TOutput>(
   config: X402Config
 ) {
   const app = new Hono();
+
+  // Schema endpoint for deploy-time introspection
+  app.get("/schema", (c) => {
+    return c.json({
+      price: config.price,
+      inputSchema: config.inputSchema
+        ? zodToJsonSchema(config.inputSchema)
+        : null,
+      outputSchema: config.outputSchema
+        ? zodToJsonSchema(config.outputSchema)
+        : null,
+    });
+  });
 
   app.post("/send", x402Middleware(config), async (c) => {
     const input = await c.req.json<TInput>();
