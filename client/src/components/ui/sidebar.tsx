@@ -2,7 +2,7 @@
 import { cn } from "@/lib/utils";
 import React, { useState, createContext, useContext } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { IconMenu2, IconX } from "@tabler/icons-react";
+import { IconMenu2, IconX, IconPlus } from "@tabler/icons-react";
 import Image from "next/image";
 
 interface Links {
@@ -93,7 +93,7 @@ export const DesktopSidebar = ({
       )}
       initial={false}
       animate={{
-        width: animate ? (open ? "20vw" : 72) : "20vw",
+        width: animate ? (open ? "15vw" : 72) : "15vw",
       }}
       transition={{ duration: 0.15, ease: "easeOut" }}
       onMouseEnter={() => setOpen(true)}
@@ -192,13 +192,13 @@ export const SidebarLogo = ({ className }: { className?: string }) => {
   const { open } = useSidebar();
   return (
     <a
-      href="/app"
-      className={cn("flex items-center gap-3 w-full mb-6 p-1", className)}
+      href="/"
+      className={cn("flex items-center gap-3 w-full mb-6 p-1 pb-3 border-b-1", className)}
     >
-      <div className="h-10 w-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+      <div className="h-10 w-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center shadow-md">
         <Image
-          src="/logo.png"
-          alt="Ranso"
+          src="/Large-logo.png"
+          alt="Axicov"
           className="h-6 w-6 object-contain"
           height={24}
           width={24}
@@ -210,8 +210,36 @@ export const SidebarLogo = ({ className }: { className?: string }) => {
           open ? "opacity-100" : "opacity-0",
         )}
       >
-        Ranso
+        Axicov
       </span>
     </a>
+  );
+};
+
+export const SidebarNewChat = ({
+  className,
+  onClick,
+}: {
+  className?: string;
+  onClick?: () => void;
+}) => {
+  const { open } = useSidebar();
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center justify-center gap-2 w-full p-4 rounded-lg bg-gradient-to-b from-neutral-700 to-neutral-900 text-white hover:from-neutral-600 hover:to-neutral-800 transition-all",
+        className,
+      )}
+    >
+      <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
+        <IconPlus className="h-5 w-5" />
+      </div>
+      {open && (
+        <span className="text-sm font-medium whitespace-nowrap">
+          New Chat
+        </span>
+      )}
+    </button>
   );
 };
