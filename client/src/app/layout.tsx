@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 import CoreLayout from "@/components/layout/CoreLayout";
+import { Web3Provider } from "@/providers/Web3Provider";
 
 const poppins = Poppins({
   variable: "--font-geist-sans",
@@ -22,7 +23,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${poppins.className} antialiased`}>
-        <CoreLayout>{children}</CoreLayout>
+        <Web3Provider>
+          <CoreLayout>{children}</CoreLayout>
+        </Web3Provider>
       </body>
     </html>
   );

@@ -8,6 +8,7 @@ import {
   SidebarLogo,
   SidebarNewChat,
 } from "@/components/ui/sidebar";
+import { Navbar } from "@/components/layout/Navbar";
 import { IconSettings, IconLayout, IconTool } from "@tabler/icons-react";
 
 const CoreLayout = ({ children }: { children: React.ReactNode }) => {
@@ -49,7 +50,10 @@ const CoreLayout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </SidebarBody>
       </Sidebar>
-      <main className="flex-1 overflow-auto">{children}</main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Navbar />
+        <main className="flex-1 overflow-auto">{children}</main>
+      </div>
     </div>
   );
 };
