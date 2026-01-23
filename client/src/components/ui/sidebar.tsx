@@ -193,7 +193,10 @@ export const SidebarLogo = ({ className }: { className?: string }) => {
   return (
     <a
       href="/"
-      className={cn("flex items-center gap-3 w-full mb-6 p-1 pb-3 border-b-1", className)}
+      className={cn(
+        "flex items-center gap-3 w-full mb-6 p-1 pb-3 border-b-1",
+        className,
+      )}
     >
       <div className="h-10 w-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center shadow-md">
         <Image
@@ -228,7 +231,7 @@ export const SidebarNewChat = ({
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center justify-center gap-2 w-full p-4 rounded-lg bg-gradient-to-b from-neutral-700 to-neutral-900 text-white hover:from-neutral-600 hover:to-neutral-800 transition-all",
+        "flex items-center justify-center gap-2 w-full p-2 rounded-lg bg-gradient-to-b from-neutral-700 to-neutral-900 text-white hover:from-neutral-600 hover:to-neutral-800 transition-all",
         className,
       )}
     >
@@ -236,9 +239,7 @@ export const SidebarNewChat = ({
         <IconPlus className="h-5 w-5" />
       </div>
       {open && (
-        <span className="text-sm font-medium whitespace-nowrap">
-          New Chat
-        </span>
+        <span className="text-sm font-medium whitespace-nowrap">New Chat</span>
       )}
     </button>
   );
